@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/portainer/portainer/pkg/libstack"
 
@@ -20,6 +21,8 @@ import (
 	"github.com/docker/compose/v2/pkg/compose"
 	"github.com/rs/zerolog/log"
 )
+
+var mu sync.Mutex
 
 func withCli(
 	ctx context.Context,
@@ -47,9 +50,12 @@ func withCli(
 
 	opts.ConfigDir = tempDir
 
+	mu.Lock()
 	if err := cli.Initialize(opts); err != nil {
+		mu.Unlock()
 		return fmt.Errorf("unable to initialize the Docker client: %w", err)
 	}
+	mu.Unlock()
 	defer cli.Client().Close()
 
 	for _, r := range options.Registries {
