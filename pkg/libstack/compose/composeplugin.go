@@ -11,7 +11,6 @@ import (
 
 	"github.com/portainer/portainer/pkg/libstack"
 
-	"github.com/compose-spec/compose-go/v2/consts"
 	"github.com/compose-spec/compose-go/v2/dotenv"
 	"github.com/compose-spec/compose-go/v2/loader"
 	"github.com/compose-spec/compose-go/v2/types"
@@ -106,13 +105,6 @@ func withComposeService(
 
 				if options.ProjectName != "" {
 					o.SetProjectName(options.ProjectName, true)
-				} else if nameFromEnv, ok := configDetails.Environment[consts.ComposeProjectName]; ok && nameFromEnv != "" {
-					o.SetProjectName(nameFromEnv, true)
-				} else {
-					o.SetProjectName(
-						loader.NormalizeProjectName(filepath.Base(configDetails.WorkingDir)),
-						false,
-					)
 				}
 			},
 		)
