@@ -12,6 +12,8 @@ import { useConfigMap } from '@/react/kubernetes/configs/queries/useConfigMap';
 import { useTeams } from '@/react/portainer/users/teams/queries';
 import { useUpdateK8sConfigMapMutation } from '@/react/kubernetes/configs/queries/useUpdateK8sConfigMapMutation';
 import { notifyError, notifySuccess } from '@/portainer/services/notifications';
+import { Configuration } from '@/react/kubernetes/configs/types';
+import { useCurrentUser } from '@/react/hooks/useUser';
 
 import { Widget, WidgetBody, WidgetTitle } from '@@/Widget';
 import { TextTip } from '@@/Tip/TextTip';
@@ -28,6 +30,7 @@ export function CreateAccessWidget() {
   const {
     params: { id: namespaceName },
   } = useCurrentStateAndParams();
+  const { user } = useCurrentUser();
   const environmentId = useEnvironmentId();
   const isRBACEnabledQuery = useIsRBACEnabled(environmentId);
   const initialValues: {
@@ -75,7 +78,9 @@ export function CreateAccessWidget() {
                 initialValues={initialValues}
                 enableReinitialize
                 validationSchema={validationSchema}
-                onSubmit={onSubmit}
+                onSubmit={(values, formikHelpers) =>
+                  onSubmit(values, formikHelpers)
+                }
                 validateOnMount
               >
                 {(formikProps) => (
@@ -104,10 +109,10 @@ export function CreateAccessWidget() {
         namespaceAccesses,
         values.selectedUsersAndTeams,
         namespaceName,
-        configMap
+        configMap ?? newConfigMap(user.Username, user.Id)
       );
       await updateConfigMapMutation.mutateAsync({
-        data: configMapPayload,
+        configMap: configMapPayload,
         configMapName: PortainerNamespaceAccessesConfigMap.configMapName,
       });
       notifySuccess('Success', 'Namespace access updated');
@@ -116,4 +121,19 @@ export function CreateAccessWidget() {
       notifyError('Failed to update namespace access', error as Error);
     }
   }
+}
+
+function newConfigMap(userName: string, userId: number) {
+  const configMap: Configuration = {
+    Type: 1,
+    UID: '',
+    Name: PortainerNamespaceAccessesConfigMap.configMapName,
+    Namespace: PortainerNamespaceAccessesConfigMap.namespace,
+    Data: { [PortainerNamespaceAccessesConfigMap.accessKey]: '{}' },
+    ConfigurationOwner: userName,
+    ConfigurationOwnerId: `${userId}`,
+    IsUsed: false,
+    Yaml: '',
+  };
+  return configMap;
 }

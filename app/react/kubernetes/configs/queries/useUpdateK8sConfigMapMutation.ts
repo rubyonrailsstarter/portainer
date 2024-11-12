@@ -19,12 +19,27 @@ export function useUpdateK8sConfigMapMutation(
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
-      data,
+      configMap,
       configMapName,
     }: {
-      data: ConfigMap;
+      configMap: ConfigMap;
       configMapName: string;
-    }) => updateConfigMap(environmentId, namespace, configMapName, data),
+    }) => {
+      if (!configMap.metadata?.uid) {
+        return createConfigMap(
+          environmentId,
+          namespace,
+          configMapName,
+          configMap
+        );
+      }
+      return updateConfigMap(
+        environmentId,
+        namespace,
+        configMapName,
+        configMap
+      );
+    },
     ...withInvalidate(queryClient, [
       configMapQueryKeys.configMaps(environmentId, namespace),
     ]),
@@ -47,6 +62,25 @@ async function updateConfigMap(
     throw parseKubernetesAxiosError(
       e,
       `Unable to update ConfigMap '${configMap}'`
+    );
+  }
+}
+
+function createConfigMap(
+  environmentId: EnvironmentId,
+  namespace: string,
+  configMap: string,
+  data: ConfigMap
+) {
+  try {
+    return axios.post(
+      `/endpoints/${environmentId}/kubernetes/api/v1/namespaces/${namespace}/configmaps`,
+      data
+    );
+  } catch (e) {
+    throw parseKubernetesAxiosError(
+      e,
+      `Unable to create ConfigMap '${configMap}'`
     );
   }
 }

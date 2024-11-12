@@ -95,7 +95,7 @@ export function AccessDatatable() {
         configMap
       );
       await updateConfigMapMutation.mutateAsync({
-        data: configMapPayload,
+        configMap: configMapPayload,
         configMapName: PortainerNamespaceAccessesConfigMap.configMapName,
       });
       notifySuccess('Success', 'Namespace access updated');
