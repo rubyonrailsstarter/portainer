@@ -11,6 +11,7 @@ import (
 
 	"github.com/portainer/portainer/pkg/libstack"
 
+	"github.com/compose-spec/compose-go/v2/consts"
 	"github.com/compose-spec/compose-go/v2/dotenv"
 	"github.com/compose-spec/compose-go/v2/loader"
 	"github.com/compose-spec/compose-go/v2/types"
@@ -72,7 +73,10 @@ func withComposeService(
 	return withCli(ctx, options, func(ctx context.Context, cli *command.DockerCli) error {
 		composeService := compose.NewComposeService(cli)
 
-		configDetails := types.ConfigDetails{WorkingDir: options.WorkingDir}
+		configDetails := types.ConfigDetails{
+			WorkingDir:  options.WorkingDir,
+			Environment: make(map[string]string),
+		}
 
 		for _, p := range filePaths {
 			configDetails.ConfigFiles = append(configDetails.ConfigFiles, types.ConfigFile{Filename: p})
@@ -102,6 +106,13 @@ func withComposeService(
 
 				if options.ProjectName != "" {
 					o.SetProjectName(options.ProjectName, true)
+				} else if nameFromEnv, ok := configDetails.Environment[consts.ComposeProjectName]; ok && nameFromEnv != "" {
+					o.SetProjectName(nameFromEnv, true)
+				} else {
+					o.SetProjectName(
+						loader.NormalizeProjectName(filepath.Base(configDetails.WorkingDir)),
+						false,
+					)
 				}
 			},
 		)
