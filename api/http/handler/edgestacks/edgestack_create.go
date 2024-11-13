@@ -26,11 +26,10 @@ func (handler *Handler) edgeStackCreate(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var edgeStack *portainer.EdgeStack
-	err = handler.DataStore.UpdateTx(func(tx dataservices.DataStoreTx) error {
+	if err := handler.DataStore.UpdateTx(func(tx dataservices.DataStoreTx) error {
 		edgeStack, err = handler.createSwarmStack(tx, method, dryrun, tokenData.ID, r)
 		return err
-	})
-	if err != nil {
+	}); err != nil {
 		switch {
 		case httperrors.IsInvalidPayloadError(err):
 			return httperror.BadRequest("Invalid payload", err)
