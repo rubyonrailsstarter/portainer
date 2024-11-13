@@ -162,13 +162,25 @@ func (c *ComposeDeployer) Deploy(ctx context.Context, filePaths []string, option
 	})
 }
 
+// Run runs the given service just once, without considering dependencies
 func (c *ComposeDeployer) Run(ctx context.Context, filePaths []string, serviceName string, options libstack.RunOptions) error {
 	return withComposeService(ctx, filePaths, options.Options, func(composeService api.Service, project *types.Project) error {
 		addServiceLabels(project, true)
 
-		if err := composeService.Create(ctx, project, api.CreateOptions{}); err != nil {
-			return err
+		for name, service := range project.Services {
+			if name == serviceName {
+				project.DisabledServices[serviceName] = service
+			}
 		}
+
+		project.Services = make(types.Services)
+
+		if err := composeService.Create(ctx, project, api.CreateOptions{RemoveOrphans: true}); err != nil {
+			return fmt.Errorf("compose create operation failed: %w", err)
+		}
+
+		maps.Copy(project.Services, project.DisabledServices)
+		project.DisabledServices = make(types.Services)
 
 		opts := api.RunOptions{
 			AutoRemove: options.Remove,
@@ -222,6 +234,7 @@ func (c *ComposeDeployer) Validate(ctx context.Context, filePaths []string, opti
 	})
 }
 
+// Config returns the compose file with the paths resolved
 func (c *ComposeDeployer) Config(ctx context.Context, filePaths []string, options libstack.Options) ([]byte, error) {
 	var payload []byte
 

@@ -83,6 +83,7 @@ services:
 	serviceName := "updater"
 
 	err := w.Run(context.Background(), filePaths, serviceName, libstack.RunOptions{
+		Remove: true,
 		Options: libstack.Options{
 			ProjectName: "project_name",
 		},
