@@ -66,7 +66,7 @@ func TestComposeProjectStatus(t *testing.T) {
 
 			time.Sleep(5 * time.Second)
 
-			status, statusMessage, err := waitForStatus(w, ctx, projectName, libstack.StatusRunning, "")
+			status, statusMessage, err := waitForStatus(w, ctx, projectName, libstack.StatusRunning)
 			if err != nil {
 				t.Fatalf("[test: %s] Failed to get compose project status: %v", testCase.TestName, err)
 			}
@@ -86,7 +86,7 @@ func TestComposeProjectStatus(t *testing.T) {
 
 			time.Sleep(20 * time.Second)
 
-			status, statusMessage, err = waitForStatus(w, ctx, projectName, libstack.StatusRemoved, "")
+			status, statusMessage, err = waitForStatus(w, ctx, projectName, libstack.StatusRemoved)
 			if err != nil {
 				t.Fatalf("[test: %s] Failed to get compose project status: %v", testCase.TestName, err)
 			}
@@ -102,11 +102,11 @@ func TestComposeProjectStatus(t *testing.T) {
 	}
 }
 
-func waitForStatus(deployer libstack.Deployer, ctx context.Context, stackName string, requiredStatus libstack.Status, stackFileLocation string) (libstack.Status, string, error) {
+func waitForStatus(deployer libstack.Deployer, ctx context.Context, stackName string, requiredStatus libstack.Status) (libstack.Status, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 
-	statusCh := deployer.WaitForStatus(ctx, stackName, requiredStatus, stackFileLocation)
+	statusCh := deployer.WaitForStatus(ctx, stackName, requiredStatus)
 	result := <-statusCh
 	if result.ErrorMsg == "" {
 		return result.Status, "", nil

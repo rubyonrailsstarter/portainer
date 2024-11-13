@@ -111,7 +111,7 @@ func aggregateStatuses(services []service) (libstack.Status, string) {
 
 }
 
-func (c *ComposeDeployer) WaitForStatus(ctx context.Context, name string, status libstack.Status, _ string) <-chan libstack.WaitResult {
+func (c *ComposeDeployer) WaitForStatus(ctx context.Context, name string, status libstack.Status) <-chan libstack.WaitResult {
 	waitResultCh := make(chan libstack.WaitResult)
 	waitResult := libstack.WaitResult{Status: status}
 
@@ -134,7 +134,6 @@ func (c *ComposeDeployer) WaitForStatus(ctx context.Context, name string, status
 				psCtx, cancelFunc := context.WithTimeout(context.Background(), time.Minute)
 				defer cancelFunc()
 				containerSummaries, err = composeService.Ps(psCtx, name, api.PsOptions{All: true})
-
 
 				return err
 			}); err != nil {
