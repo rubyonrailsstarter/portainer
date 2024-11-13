@@ -35,17 +35,14 @@ services:
 
 	dir := t.TempDir()
 
-	filePathOriginal, err := createFile(dir, "docker-compose.yml", composeFileContent)
-	require.NoError(t, err)
-
-	filePathOverride, err := createFile(dir, "docker-compose-override.yml", overrideComposeFileContent)
-	require.NoError(t, err)
+	filePathOriginal := createFile(t, dir, "docker-compose.yml", composeFileContent)
+	filePathOverride := createFile(t, dir, "docker-compose-override.yml", overrideComposeFileContent)
 
 	filePaths := []string{filePathOriginal, filePathOverride}
 
 	ctx := context.Background()
 
-	err = w.Validate(ctx, filePaths, libstack.Options{ProjectName: projectName})
+	err := w.Validate(ctx, filePaths, libstack.Options{ProjectName: projectName})
 	require.NoError(t, err)
 
 	err = w.Pull(ctx, filePaths, libstack.Options{ProjectName: projectName})
@@ -73,14 +70,33 @@ services:
 	require.False(t, containerExists(composeContainerName))
 }
 
-func createFile(dir, fileName, content string) (string, error) {
+func TestRun(t *testing.T) {
+	w := NewComposeDeployer()
+
+	filePath := createFile(t, t.TempDir(), "docker-compose.yml", `
+services:
+  updater:
+    image: alpine
+`)
+
+	filePaths := []string{filePath}
+	serviceName := "updater"
+
+	err := w.Run(context.Background(), filePaths, serviceName, libstack.RunOptions{
+		Options: libstack.Options{
+			ProjectName: "project_name",
+		},
+	})
+	require.NoError(t, err)
+}
+
+func createFile(t *testing.T, dir, fileName, content string) string {
 	filePath := filepath.Join(dir, fileName)
 
-	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
-		return "", err
-	}
+	err := os.WriteFile(filePath, []byte(content), 0o644)
+	require.NoError(t, err)
 
-	return filePath, nil
+	return filePath
 }
 
 func containerExists(containerName string) bool {
@@ -101,8 +117,7 @@ func Test_Validate(t *testing.T) {
 
 	dir := t.TempDir()
 
-	filePathOriginal, err := createFile(dir, "docker-compose.yml", invalidComposeFileContent)
-	require.NoError(t, err)
+	filePathOriginal := createFile(t, dir, "docker-compose.yml", invalidComposeFileContent)
 
 	filePaths := []string{filePathOriginal}
 
@@ -110,7 +125,7 @@ func Test_Validate(t *testing.T) {
 
 	ctx := context.Background()
 
-	err = w.Validate(ctx, filePaths, libstack.Options{ProjectName: projectName})
+	err := w.Validate(ctx, filePaths, libstack.Options{ProjectName: projectName})
 	require.Error(t, err)
 }
 
@@ -308,13 +323,11 @@ networks:
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			composeFilePath, err := createFile(dir, "docker-compose.yml", tc.composeFileContent)
-			require.NoError(t, err)
+			composeFilePath := createFile(t, dir, "docker-compose.yml", tc.composeFileContent)
 
 			envFilePath := ""
 			if tc.envFileContent != "" {
-				envFilePath, err = createFile(dir, "stack.env", tc.envFileContent)
-				require.NoError(t, err)
+				envFilePath = createFile(t, dir, "stack.env", tc.envFileContent)
 			}
 
 			w := NewComposeDeployer()

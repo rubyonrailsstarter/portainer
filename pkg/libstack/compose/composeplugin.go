@@ -142,7 +142,7 @@ func withComposeService(
 // Deploy creates and starts containers
 func (c *ComposeDeployer) Deploy(ctx context.Context, filePaths []string, options libstack.DeployOptions) error {
 	return withComposeService(ctx, filePaths, options.Options, func(composeService api.Service, project *types.Project) error {
-		addServiceLabels(project)
+		addServiceLabels(project, false)
 
 		var opts api.UpOptions
 		if options.ForceRecreate {
@@ -164,12 +164,17 @@ func (c *ComposeDeployer) Deploy(ctx context.Context, filePaths []string, option
 
 func (c *ComposeDeployer) Run(ctx context.Context, filePaths []string, serviceName string, options libstack.RunOptions) error {
 	return withComposeService(ctx, filePaths, options.Options, func(composeService api.Service, project *types.Project) error {
-		addServiceLabels(project)
+		addServiceLabels(project, true)
+
+		if err := composeService.Create(ctx, project, api.CreateOptions{}); err != nil {
+			return err
+		}
 
 		opts := api.RunOptions{
 			AutoRemove: options.Remove,
 			Command:    options.Args,
 			Detach:     options.Detached,
+			Service:    serviceName,
 		}
 
 		if _, err := composeService.RunOneOffContainer(ctx, project, opts); err != nil {
@@ -235,7 +240,12 @@ func (c *ComposeDeployer) Config(ctx context.Context, filePaths []string, option
 	return payload, nil
 }
 
-func addServiceLabels(project *types.Project) {
+func addServiceLabels(project *types.Project, oneOff bool) {
+	oneOffLabel := "False"
+	if oneOff {
+		oneOffLabel = "True"
+	}
+
 	for i, s := range project.Services {
 		s.CustomLabels = map[string]string{
 			api.ProjectLabel:     project.Name,
@@ -243,7 +253,7 @@ func addServiceLabels(project *types.Project) {
 			api.VersionLabel:     api.ComposeVersion,
 			api.WorkingDirLabel:  "/",
 			api.ConfigFilesLabel: strings.Join(project.ComposeFiles, ","),
-			api.OneoffLabel:      "False",
+			api.OneoffLabel:      oneOffLabel,
 		}
 		project.Services[i] = s
 	}
