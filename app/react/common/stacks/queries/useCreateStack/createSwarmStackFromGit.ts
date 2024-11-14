@@ -52,7 +52,7 @@ export async function createSwarmStackFromGit({
 }: SwarmGitRepositoryPayload) {
   try {
     const { data } = await axios.post<Stack>(
-      buildCreateUrl('standalone', 'repository'),
+      buildCreateUrl('swarm', 'repository'),
       payload,
       {
         params: { endpointId: environmentId },
