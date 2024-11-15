@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -19,6 +18,7 @@ import (
 	"github.com/docker/cli/cli/flags"
 	"github.com/docker/compose/v2/pkg/api"
 	"github.com/docker/compose/v2/pkg/compose"
+	"github.com/docker/docker/registry"
 	"github.com/rs/zerolog/log"
 )
 
@@ -42,14 +42,6 @@ func withCli(
 		opts.Hosts = []string{options.Host}
 	}
 
-	tempDir, err := os.MkdirTemp("", "docker-config")
-	if err != nil {
-		return fmt.Errorf("unable to create a temporary directory for the Docker config: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	opts.ConfigDir = tempDir
-
 	mu.Lock()
 	if err := cli.Initialize(opts); err != nil {
 		mu.Unlock()
@@ -59,11 +51,11 @@ func withCli(
 	defer cli.Client().Close()
 
 	for _, r := range options.Registries {
-		creds := cli.ConfigFile().GetCredentialsStore(r.ServerAddress)
-
-		if err := creds.Store(r); err != nil {
-			return fmt.Errorf("unable to store the Docker credentials: %w", err)
+		if r.ServerAddress == "" || r.ServerAddress == registry.DefaultNamespace {
+			r.ServerAddress = registry.IndexServer
 		}
+
+		cli.ConfigFile().AuthConfigs[r.ServerAddress] = r
 	}
 
 	return cliFn(ctx, cli)
