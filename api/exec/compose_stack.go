@@ -14,6 +14,7 @@ import (
 	"github.com/portainer/portainer/api/stacks/stackutils"
 	"github.com/portainer/portainer/pkg/libstack"
 
+	"github.com/docker/cli/cli/config/types"
 	"github.com/pkg/errors"
 )
 
@@ -25,7 +26,6 @@ type ComposeStackManager struct {
 
 // NewComposeStackManager returns a docker-compose wrapper if corresponding binary present, otherwise nil
 func NewComposeStackManager(deployer libstack.Deployer, proxyManager *proxy.Manager) (*ComposeStackManager, error) {
-
 	return &ComposeStackManager{
 		deployer:     deployer,
 		proxyManager: proxyManager,
@@ -60,6 +60,7 @@ func (manager *ComposeStackManager) Up(ctx context.Context, stack *portainer.Sta
 			EnvFilePath: envFilePath,
 			Host:        url,
 			ProjectName: stack.Name,
+			Registries:  portainerRegistriesToAuthConfigs(options.Registries),
 		},
 		ForceRecreate:        options.ForceRecreate,
 		AbortOnContainerExit: options.AbortOnContainerExit,
@@ -90,6 +91,7 @@ func (manager *ComposeStackManager) Run(ctx context.Context, stack *portainer.St
 			EnvFilePath: envFilePath,
 			Host:        url,
 			ProjectName: stack.Name,
+			Registries:  portainerRegistriesToAuthConfigs(options.Registries),
 		},
 		Remove:   options.Remove,
 		Args:     options.Args,
@@ -103,8 +105,7 @@ func (manager *ComposeStackManager) Down(ctx context.Context, stack *portainer.S
 	url, proxy, err := manager.fetchEndpointProxy(endpoint)
 	if err != nil {
 		return err
-	}
-	if proxy != nil {
+	} else if proxy != nil {
 		defer proxy.Close()
 	}
 
@@ -120,12 +121,11 @@ func (manager *ComposeStackManager) Down(ctx context.Context, stack *portainer.S
 
 // Pull an image associated with a service defined in a docker-compose.yml or docker-stack.yml file,
 // but does not start containers based on those images.
-func (manager *ComposeStackManager) Pull(ctx context.Context, stack *portainer.Stack, endpoint *portainer.Endpoint) error {
+func (manager *ComposeStackManager) Pull(ctx context.Context, stack *portainer.Stack, endpoint *portainer.Endpoint, options portainer.ComposeOptions) error {
 	url, proxy, err := manager.fetchEndpointProxy(endpoint)
 	if err != nil {
 		return err
-	}
-	if proxy != nil {
+	} else if proxy != nil {
 		defer proxy.Close()
 	}
 
@@ -140,6 +140,7 @@ func (manager *ComposeStackManager) Pull(ctx context.Context, stack *portainer.S
 		EnvFilePath: envFilePath,
 		Host:        url,
 		ProjectName: stack.Name,
+		Registries:  portainerRegistriesToAuthConfigs(options.Registries),
 	})
 	return errors.Wrap(err, "failed to pull images of the stack")
 }
@@ -178,12 +179,12 @@ func createEnvFile(stack *portainer.Stack) (string, error) {
 
 	// Copy from default .env file
 	defaultEnvPath := path.Join(stack.ProjectPath, path.Dir(stack.EntryPoint), ".env")
-	if err = copyDefaultEnvFile(envfile, defaultEnvPath); err != nil {
+	if err := copyDefaultEnvFile(envfile, defaultEnvPath); err != nil {
 		return "", err
 	}
 
 	// Copy from stack env vars
-	if err = copyConfigEnvVars(envfile, stack.Env); err != nil {
+	if err := copyConfigEnvVars(envfile, stack.Env); err != nil {
 		return "", err
 	}
 
@@ -218,4 +219,18 @@ func copyConfigEnvVars(w io.Writer, envs []portainer.Pair) error {
 		}
 	}
 	return nil
+}
+
+func portainerRegistriesToAuthConfigs(registries []portainer.Registry) []types.AuthConfig {
+	var authConfigs []types.AuthConfig
+
+	for _, r := range registries {
+		authConfigs = append(authConfigs, types.AuthConfig{
+			Username:      r.Username,
+			Password:      r.Password,
+			ServerAddress: r.URL,
+		})
+	}
+
+	return authConfigs
 }

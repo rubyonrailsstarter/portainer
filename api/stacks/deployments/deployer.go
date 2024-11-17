@@ -58,23 +58,25 @@ func (d *stackDeployer) DeployComposeStack(stack *portainer.Stack, endpoint *por
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	d.swarmStackManager.Login(registries, endpoint)
-	defer d.swarmStackManager.Logout(endpoint)
+	options := portainer.ComposeOptions{Registries: registries}
 
 	// --force-recreate doesn't pull updated images
 	if forcePullImage {
-		if err := d.composeStackManager.Pull(context.TODO(), stack, endpoint); err != nil {
+		if err := d.composeStackManager.Pull(context.TODO(), stack, endpoint, options); err != nil {
 			return err
 		}
 	}
 
-	err := d.composeStackManager.Up(context.TODO(), stack, endpoint, portainer.ComposeUpOptions{
-		ForceRecreate: forceRecreate,
-	})
-	if err != nil {
+	if err := d.composeStackManager.Up(context.TODO(), stack, endpoint, portainer.ComposeUpOptions{
+		ComposeOptions: options,
+		ForceRecreate:  forceRecreate,
+	}); err != nil {
 		d.composeStackManager.Down(context.TODO(), stack, endpoint)
+
+		return err
 	}
-	return err
+
+	return nil
 }
 
 func (d *stackDeployer) DeployKubernetesStack(stack *portainer.Stack, endpoint *portainer.Endpoint, user *portainer.User) error {

@@ -6,6 +6,8 @@ import (
 	portainer "github.com/portainer/portainer/api"
 )
 
+var _ portainer.ComposeStackManager = &composeStackManager{}
+
 type composeStackManager struct{}
 
 func NewComposeStackManager() *composeStackManager {
@@ -31,6 +33,6 @@ func (manager *composeStackManager) Down(ctx context.Context, stack *portainer.S
 	return nil
 }
 
-func (manager *composeStackManager) Pull(ctx context.Context, stack *portainer.Stack, endpoint *portainer.Endpoint) error {
+func (manager *composeStackManager) Pull(ctx context.Context, stack *portainer.Stack, endpoint *portainer.Endpoint, options portainer.ComposeOptions) error {
 	return nil
 }

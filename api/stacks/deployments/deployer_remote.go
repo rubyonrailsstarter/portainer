@@ -59,8 +59,7 @@ func (d *stackDeployer) DeployRemoteComposeStack(
 
 	// --force-recreate doesn't pull updated images
 	if forcePullImage {
-		err := d.composeStackManager.Pull(context.TODO(), stack, endpoint)
-		if err != nil {
+		if err := d.composeStackManager.Pull(context.TODO(), stack, endpoint, portainer.ComposeOptions{}); err != nil {
 			return err
 		}
 	}

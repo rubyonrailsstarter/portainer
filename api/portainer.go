@@ -1367,7 +1367,13 @@ type (
 		ValidateFlags(flags *CLIFlags) error
 	}
 
+	ComposeOptions struct {
+		Registries []Registry
+	}
+
 	ComposeUpOptions struct {
+		ComposeOptions
+
 		// ForceRecreate forces to recreate containers
 		ForceRecreate bool
 		// AbortOnContainerExit will stop the deployment if a container exits.
@@ -1379,6 +1385,8 @@ type (
 	}
 
 	ComposeRunOptions struct {
+		ComposeOptions
+
 		// Remove will remove the container after it has stopped
 		Remove bool
 		// Args are the arguments to pass to the container
@@ -1394,7 +1402,7 @@ type (
 		Run(ctx context.Context, stack *Stack, endpoint *Endpoint, serviceName string, options ComposeRunOptions) error
 		Up(ctx context.Context, stack *Stack, endpoint *Endpoint, options ComposeUpOptions) error
 		Down(ctx context.Context, stack *Stack, endpoint *Endpoint) error
-		Pull(ctx context.Context, stack *Stack, endpoint *Endpoint) error
+		Pull(ctx context.Context, stack *Stack, endpoint *Endpoint, options ComposeOptions) error
 	}
 
 	// CryptoService represents a service for encrypting/hashing data
