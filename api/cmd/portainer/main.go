@@ -49,7 +49,6 @@ import (
 	"github.com/portainer/portainer/api/stacks/deployments"
 	"github.com/portainer/portainer/pkg/featureflags"
 	"github.com/portainer/portainer/pkg/libhelm"
-	"github.com/portainer/portainer/pkg/libstack"
 	"github.com/portainer/portainer/pkg/libstack/compose"
 
 	"github.com/gofrs/uuid"
@@ -164,26 +163,6 @@ func checkDBSchemaServerVersionMatch(dbStore dataservices.DataStore, serverVersi
 	}
 
 	return v.SchemaVersion == serverVersion && v.Edition == serverEdition
-}
-
-func initComposeStackManager(composeDeployer libstack.Deployer, proxyManager *proxy.Manager) portainer.ComposeStackManager {
-	composeWrapper, err := exec.NewComposeStackManager(composeDeployer, proxyManager)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed creating compose manager")
-	}
-
-	return composeWrapper
-}
-
-func initSwarmStackManager(
-	assetsPath string,
-	configPath string,
-	signatureService portainer.DigitalSignatureService,
-	fileService portainer.FileService,
-	reverseTunnelService portainer.ReverseTunnelService,
-	dataStore dataservices.DataStore,
-) (portainer.SwarmStackManager, error) {
-	return exec.NewSwarmStackManager(assetsPath, configPath, signatureService, fileService, reverseTunnelService, dataStore)
 }
 
 func initKubernetesDeployer(kubernetesTokenCacheManager *kubeproxy.TokenCacheManager, kubernetesClientFactory *kubecli.ClientFactory, dataStore dataservices.DataStore, reverseTunnelService portainer.ReverseTunnelService, signatureService portainer.DigitalSignatureService, proxyManager *proxy.Manager, assetsPath string) portainer.KubernetesDeployer {
@@ -435,9 +414,9 @@ func buildServer(flags *portainer.CLIFlags) portainer.Server {
 
 	composeDeployer := compose.NewComposeDeployer()
 
-	composeStackManager := initComposeStackManager(composeDeployer, proxyManager)
+	composeStackManager := exec.NewComposeStackManager(composeDeployer, proxyManager, dataStore)
 
-	swarmStackManager, err := initSwarmStackManager(*flags.Assets, dockerConfigPath, signatureService, fileService, reverseTunnelService, dataStore)
+	swarmStackManager, err := exec.NewSwarmStackManager(*flags.Assets, dockerConfigPath, signatureService, fileService, reverseTunnelService, dataStore)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed initializing swarm stack manager")
 	}
