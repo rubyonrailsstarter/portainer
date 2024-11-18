@@ -48,10 +48,7 @@ func Test_UpAndDown(t *testing.T) {
 
 	deployer := compose.NewComposeDeployer()
 
-	w, err := NewComposeStackManager(deployer, nil)
-	if err != nil {
-		t.Fatalf("Failed creating manager: %s", err)
-	}
+	w := NewComposeStackManager(deployer, nil, nil)
 
 	ctx := context.TODO()
 

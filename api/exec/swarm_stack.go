@@ -11,7 +11,6 @@ import (
 
 	portainer "github.com/portainer/portainer/api"
 	"github.com/portainer/portainer/api/dataservices"
-	"github.com/portainer/portainer/api/internal/registryutils"
 	"github.com/portainer/portainer/api/stacks/stackutils"
 
 	"github.com/rs/zerolog/log"
@@ -62,22 +61,8 @@ func (manager *SwarmStackManager) Login(registries []portainer.Registry, endpoin
 
 	for _, registry := range registries {
 		if registry.Authentication {
-			if err := registryutils.EnsureRegTokenValid(manager.dataStore, &registry); err != nil {
-				log.Warn().
-					Err(err).
-					Str("RegistryName", registry.Name).
-					Msg("Failed to validate registry token. Skip logging with this registry.")
-
-				continue
-			}
-
-			username, password, err := registryutils.GetRegEffectiveCredential(&registry)
+			username, password, err := getEffectiveRegUsernamePassword(manager.dataStore, &registry)
 			if err != nil {
-				log.Warn().
-					Err(err).
-					Str("RegistryName", registry.Name).
-					Msg("Failed to get effective credential. Skip logging with this registry.")
-
 				continue
 			}
 

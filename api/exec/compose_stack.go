@@ -9,27 +9,32 @@ import (
 	"strings"
 
 	portainer "github.com/portainer/portainer/api"
+	"github.com/portainer/portainer/api/dataservices"
 	"github.com/portainer/portainer/api/http/proxy"
 	"github.com/portainer/portainer/api/http/proxy/factory"
+	"github.com/portainer/portainer/api/internal/registryutils"
 	"github.com/portainer/portainer/api/stacks/stackutils"
 	"github.com/portainer/portainer/pkg/libstack"
 
 	"github.com/docker/cli/cli/config/types"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 // ComposeStackManager is a wrapper for docker-compose binary
 type ComposeStackManager struct {
 	deployer     libstack.Deployer
 	proxyManager *proxy.Manager
+	dataStore    dataservices.DataStore
 }
 
-// NewComposeStackManager returns a docker-compose wrapper if corresponding binary present, otherwise nil
-func NewComposeStackManager(deployer libstack.Deployer, proxyManager *proxy.Manager) (*ComposeStackManager, error) {
+// NewComposeStackManager returns a Compose stack manager
+func NewComposeStackManager(deployer libstack.Deployer, proxyManager *proxy.Manager, dataStore dataservices.DataStore) *ComposeStackManager {
 	return &ComposeStackManager{
 		deployer:     deployer,
 		proxyManager: proxyManager,
-	}, nil
+		dataStore:    dataStore,
+	}
 }
 
 // ComposeSyntaxMaxVersion returns the maximum supported version of the docker compose syntax
@@ -60,7 +65,7 @@ func (manager *ComposeStackManager) Up(ctx context.Context, stack *portainer.Sta
 			EnvFilePath: envFilePath,
 			Host:        url,
 			ProjectName: stack.Name,
-			Registries:  portainerRegistriesToAuthConfigs(options.Registries),
+			Registries:  portainerRegistriesToAuthConfigs(manager.dataStore, options.Registries),
 		},
 		ForceRecreate:        options.ForceRecreate,
 		AbortOnContainerExit: options.AbortOnContainerExit,
@@ -91,7 +96,7 @@ func (manager *ComposeStackManager) Run(ctx context.Context, stack *portainer.St
 			EnvFilePath: envFilePath,
 			Host:        url,
 			ProjectName: stack.Name,
-			Registries:  portainerRegistriesToAuthConfigs(options.Registries),
+			Registries:  portainerRegistriesToAuthConfigs(manager.dataStore, options.Registries),
 		},
 		Remove:   options.Remove,
 		Args:     options.Args,
@@ -140,7 +145,7 @@ func (manager *ComposeStackManager) Pull(ctx context.Context, stack *portainer.S
 		EnvFilePath: envFilePath,
 		Host:        url,
 		ProjectName: stack.Name,
-		Registries:  portainerRegistriesToAuthConfigs(options.Registries),
+		Registries:  portainerRegistriesToAuthConfigs(manager.dataStore, options.Registries),
 	})
 	return errors.Wrap(err, "failed to pull images of the stack")
 }
@@ -221,16 +226,48 @@ func copyConfigEnvVars(w io.Writer, envs []portainer.Pair) error {
 	return nil
 }
 
-func portainerRegistriesToAuthConfigs(registries []portainer.Registry) []types.AuthConfig {
+func portainerRegistriesToAuthConfigs(tx dataservices.DataStoreTx, registries []portainer.Registry) []types.AuthConfig {
 	var authConfigs []types.AuthConfig
 
 	for _, r := range registries {
-		authConfigs = append(authConfigs, types.AuthConfig{
+		ac := types.AuthConfig{
 			Username:      r.Username,
 			Password:      r.Password,
 			ServerAddress: r.URL,
-		})
+		}
+
+		if r.Authentication {
+			var err error
+
+			ac.Username, ac.Password, err = getEffectiveRegUsernamePassword(tx, &r)
+			if err != nil {
+				continue
+			}
+		}
+
+		authConfigs = append(authConfigs, ac)
 	}
 
 	return authConfigs
+}
+
+func getEffectiveRegUsernamePassword(tx dataservices.DataStoreTx, registry *portainer.Registry) (string, string, error) {
+	if err := registryutils.EnsureRegTokenValid(tx, registry); err != nil {
+		log.Warn().
+			Err(err).
+			Str("RegistryName", registry.Name).
+			Msg("Failed to validate registry token. Skip logging with this registry.")
+
+		return "", "", err
+	}
+
+	username, password, err := registryutils.GetRegEffectiveCredential(registry)
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Str("RegistryName", registry.Name).
+			Msg("Failed to get effective credential. Skip logging with this registry.")
+	}
+
+	return username, password, err
 }
