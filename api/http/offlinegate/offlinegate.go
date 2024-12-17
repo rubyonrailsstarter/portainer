@@ -45,7 +45,9 @@ func (o *OfflineGate) WaitingMiddleware(timeout time.Duration, next http.Handler
 			httperror.WriteError(w, http.StatusRequestTimeout, "Timeout waiting for the offline gate to signal", http.ErrHandlerTimeout)
 			return
 		}
+
+		defer o.lock.RUnlock()
+
 		next.ServeHTTP(w, r)
-		o.lock.RUnlock()
 	})
 }

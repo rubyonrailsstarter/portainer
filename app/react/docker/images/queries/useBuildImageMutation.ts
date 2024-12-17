@@ -57,10 +57,15 @@ export async function buildImageFromDockerfileContentAndFiles(
   const dockerfile = new Blob([content], { type: 'text/plain' });
   const uploadFiles = [dockerfile, ...files];
 
+  const formData = new FormData();
+  uploadFiles.forEach((file, index) => {
+    formData.append(`file${index}`, file);
+  });
+
   return buildImage(
     environmentId,
     { t: names },
-    { file: uploadFiles },
+    formData,
     'multipart/form-data'
   );
 }
